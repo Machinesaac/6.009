@@ -292,7 +292,19 @@ def seam_carving(image, ncols):
     Starting from the given image, use the seam carving technique to remove
     ncols (an integer) columns from the image.
     """
-    raise NotImplementedError
+    im = image
+    for i in range(ncols):
+        grey = greyscale_image_from_color_image(im)
+
+        energy = compute_energy(grey)
+
+        cem = cumulative_energy_map(energy)
+
+        seam = minimum_energy_seam(cem)
+
+        im = image_without_seam(im, seam)
+
+    return im
 
 
 # Optional Helper Functions for Seam Carving
@@ -303,7 +315,16 @@ def greyscale_image_from_color_image(image):
 
     Returns a greyscale image (represented as a dictionary).
     """
-    raise NotImplementedError
+    result = {
+        'height': image['height'],
+        'width': image['width'],
+        'pixels': [],
+    }
+    for p in image['pixels']:
+        v = round(.299 * p[0] + .587 * p[1] + .114 * p[2])
+        result['pixels'].append(v)
+
+    return result
 
 
 def compute_energy(grey):
@@ -313,7 +334,7 @@ def compute_energy(grey):
 
     Returns a greyscale image (represented as a dictionary).
     """
-    raise NotImplementedError
+    return edges(grey)
 
 
 def cumulative_energy_map(energy):
@@ -325,7 +346,24 @@ def cumulative_energy_map(energy):
     the values in the 'pixels' array may not necessarily be in the range [0,
     255].
     """
-    raise NotImplementedError
+    image = energy
+    result = {
+        'height': image['height'],
+        'width': image['width'],
+        'pixels': ([0] * len(image['pixels'])),
+    }
+    for y in range(image['height']):
+        for x in range(image['width']):
+            if y == 0:
+                set_pixel(result, x, y, get_pixel(image, x, y))
+            else:
+                mini = min(get_pixel(image, x - 1, y - 1),
+                           get_pixel(image, x, y - 1),
+                           get_pixel(image, x + 1, y - 1))  # get_pixel中已经处理了边界条件
+
+                set_pixel(result, x, y, mini + get_pixel(image, x, y))
+
+    return result
 
 
 def minimum_energy_seam(c):
@@ -334,7 +372,37 @@ def minimum_energy_seam(c):
     'pixels' list that correspond to pixels contained in the minimum-energy
     seam (computed as described in the lab 1 writeup).
     """
-    raise NotImplementedError
+
+    image = c
+    path = []
+    mini = get_pixel(image, 0, image['height'] - 1)
+    loc = [0, image['height'] - 1]
+    for x in range(image['width']):
+        if get_pixel(image, x, image['height'] - 1) < mini:
+            mini = get_pixel(image, x, image['height'] - 1)
+            loc[0] = x
+            loc[1] = image['height'] - 1
+
+    path.append(loc[0] + image['width'] * loc[1])
+
+    for y in range(image['height'] - 1, 0, -1):
+        left = get_pixel(image, loc[0] - 1, y - 1)
+        mid = get_pixel(image, loc[0], y - 1)
+        right = get_pixel(image, loc[0] + 1, y - 1)
+        mini = min(left, mid, right)  # get_pixel中已经处理了边界条件
+        if mini == left:
+            loc[0] = loc[0] - 1
+            path.append(loc[0] + image['width'] * (y - 1))
+            continue
+        if mini == mid:
+            path.append(loc[0] + image['width'] * (y - 1))
+            continue
+        if mini == right:
+            loc[0] = loc[0] + 1
+            path.append(loc[0] + image['width'] * (y - 1))
+            continue
+
+    return path
 
 
 def image_without_seam(im, s):
@@ -344,7 +412,17 @@ def image_without_seam(im, s):
     pixels from the original image except those corresponding to the locations
     in the given list.
     """
-    raise NotImplementedError
+    image = im
+
+    result = {
+        'height': image['height'],
+        'width': image['width'] - 1,
+        'pixels': image['pixels'],
+    }
+    for i in s:
+        del result['pixels'][i]
+
+    return result
 
 
 # HELPER FUNCTIONS FOR LOADING AND SAVING COLOR IMAGES
@@ -436,8 +514,19 @@ if __name__ == '__main__':
     blurry_color_python = color_blurry(load_color_image('D:/MIT/6.009/Lab1/test_images/sparrowchick.png'))
     save_color_image(blurry_color_python, 'blurry_sparrowchick.png')
     """
+
+    """
     filter1 = color_filter_from_greyscale_filter(edges)
     filter2 = color_filter_from_greyscale_filter(make_blur_filter(5))
     filt = filter_cascade([filter1, filter1, filter2, filter1])
     multi_frog = filt(load_color_image('D:/MIT/6.009/Lab1/test_images/frog.png'))
     save_color_image(multi_frog, 'multi_frog.png')
+    """
+
+    seam_cats = seam_carving(load_color_image('D:/MIT/6.009/Lab1/test_images/twocats.png'), 100)
+    save_color_image(seam_cats, 'seam_cats.png')
+
+    """
+    seam_pattern = seam_carving(load_color_image('D:/MIT/6.009/Lab1/test_images/pattern.png'), 1)
+    save_color_image(seam_pattern, 'seam_pattern.png')
+    """
